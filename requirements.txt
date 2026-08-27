@@ -5,3 +5,6 @@ langchain-chroma
 streamlit
 fastapi
 langchain-community
+langchain-huggingface
+sentence-transformers
+pypdf

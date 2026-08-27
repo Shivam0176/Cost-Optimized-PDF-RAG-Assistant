@@ -2,23 +2,22 @@ import os
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import torch
+from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv(override=True)
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+embedding = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    model_kwargs={"device": device, "local_files_only": True},
+    encode_kwargs={"normalize_embeddings": True}
+)
 
 def retriever(query):
-    google_api_key = os.getenv("GEMINI_API_KEY")
-    if not google_api_key:
-        raise RuntimeError("GEMINI_API_KEY is not configured. Add it to your local .env file.")
-
-    embedding = GoogleGenerativeAIEmbeddings(
-        model="gemini-embedding-2-preview",
-        google_api_key=google_api_key,
-    )
 
     vector_store = Chroma(
-        persist_directory="./vectorstore/chroma_langchain_db",
+        persist_directory="./vectorstore/chroma_local_db",
         embedding_function=embedding,
     )
 
@@ -27,4 +26,4 @@ def retriever(query):
 
 
 if __name__ == "__main__":
-    print(retriever(query="what is an agent"))
+    print(retriever(query="all questions related to machine learning"))

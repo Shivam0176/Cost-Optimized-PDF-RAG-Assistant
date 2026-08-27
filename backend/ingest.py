@@ -1,12 +1,20 @@
 import os
 
 from langchain_chroma import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import torch
+from langchain_huggingface import HuggingFaceEmbeddings
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv(override=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    model_kwargs={"device": device, "local_files_only": True},
+    encode_kwargs={"normalize_embeddings": True}
+)
 
 def document_indexing(file_path):
     google_api_key = os.getenv("GEMINI_API_KEY")
@@ -22,15 +30,12 @@ def document_indexing(file_path):
     #Converting into Embeddings
     vector_store = Chroma.from_documents(
         documents=chunks,
-        embedding=GoogleGenerativeAIEmbeddings(
-            model="gemini-embedding-2-preview",
-            google_api_key=google_api_key,
-        ),
-        persist_directory="./vectorstore/chroma_langchain_db"                                           
+        embedding=embeddings,
+        persist_directory="./vectorstore/chroma_local_db"                                           
     )
 
     print(vector_store)
 
 if __name__ == "__main__":
-    document_indexing()
+    document_indexing("Que. Bank.pdf")
 
