@@ -76,14 +76,31 @@ if uploaded_file is not None:
         if not clean_query:
             st.warning("Please enter a question.")
         elif clean_query in st.session_state.answer_cache:
-            st.info("Showing a cache answer")
-            st.write(st.session_state.answer_cache[clean_query])
+            result = st.session_state.answer_cache[clean_query]
+
+            st.info("showing a cached answer.")
+            st.write(result["answer"])
+            st.caption("Sources: " + " | ".join(result["sources"]))
+
         else:
             try:
-                context = retriever(query)
+                docs = retriever(query)
+                context = "\n\n".join(doc.page_content for doc in docs)
                 answer = chatbot(query,context)
-                st.session_state.answer_cache[clean_query] = answer
-                st.write(answer)
+
+                sources = sorted({
+                    f"{os.path.basename(doc.metadata['source'])} - page {doc.metadata['page']+1}"
+                    for doc in docs
+                })
+
+                result = {
+                    "answer": answer,
+                    "sources": sources
+                }
+
+                st.session_state.answer_cache[clean_query] = result
+                st.write(result['answer'])
+                st.caption("Sources: " + " | ".join(result['sources']))
 
             except Exception as error:
                 st.write(f"Something went wrong {error}")

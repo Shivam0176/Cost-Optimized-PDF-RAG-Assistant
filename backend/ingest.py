@@ -37,5 +37,5 @@ def document_indexing(file_path):
     print(vector_store)
 
 if __name__ == "__main__":
-    document_indexing("Que. Bank.pdf")
+    document_indexing("Unit-II.pdf")
 

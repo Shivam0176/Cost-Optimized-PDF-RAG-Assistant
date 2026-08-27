@@ -22,8 +22,9 @@ def retriever(query):
     )
 
     docs = vector_store.as_retriever(search_kwargs={"k": 3}).invoke(query)
-    return "\n\n".join(doc.page_content for doc in docs)
+    return docs
 
 
 if __name__ == "__main__":
-    retriever()
+    response = retriever("what is regression")
+    print(response)
