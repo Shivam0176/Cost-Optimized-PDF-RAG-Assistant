@@ -26,4 +26,4 @@ def retriever(query):
 
 
 if __name__ == "__main__":
-    print(retriever(query="all questions related to machine learning"))
+    retriever()

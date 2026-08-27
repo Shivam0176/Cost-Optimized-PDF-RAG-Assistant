@@ -12,7 +12,10 @@ sys.stdout.reconfigure(encoding="utf-8")
 load_dotenv(override=True)
 
 
-model = ChatGroq(model='llama-3.1-8b-instant')
+model = ChatGroq(
+    model="openai/gpt-oss-20b",
+    temperature=0,
+    max_tokens=400)
 
 prompt = PromptTemplate(
     template="""
@@ -34,7 +37,7 @@ chain = prompt | model | parser
 
 def chatbot(query,context):
     response = chain.invoke({"context": context, "question": query})
-    print(response)
+    
     return response
 
 

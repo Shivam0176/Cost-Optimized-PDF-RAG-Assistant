@@ -1,4 +1,5 @@
 import streamlit as st
+import hashlib
 import os
 import requests
 from backend.ingest import document_indexing
@@ -7,6 +8,12 @@ from backend.llm import chatbot
 
 st.title("DocVerse AI")
 st.write("A RAG application that takes PDF document as input and user can ask questions in contex of that document")
+
+if 'indexed_files' not in st.session_state:
+    st.session_state.indexed_files = set()
+
+if 'answer_cache' not in st.session_state:
+    st.session_state.answer_cache = {}
 
 # Uploading File
 uploaded_file = st.file_uploader(
@@ -18,17 +25,20 @@ API_URL = "http://localhost:8000/upload"
 
 
 if uploaded_file is not None:
+
+    file_bytes = uploaded_file.getvalue()
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
     files = {
         "file":(
             uploaded_file.name,
-            uploaded_file.getvalue(),
+            file_bytes,
             "application/pdf"
         )
     }
 
     try:
         response = requests.post(API_URL,files=files)
-        result = response.json
+        result = response.json()
         print(result,"\n")
 
     except:
@@ -36,30 +46,47 @@ if uploaded_file is not None:
 
 
 
-    os.makedirs('uploads',exist_ok=True)
+    if file_hash not in st.session_state.indexed_files:
+        os.makedirs("uploads",exist_ok=True)
 
-    file_path = os.path.join("uploads",uploaded_file.name)
+        file_path = os.path.join('uploads',uploaded_file.name)
 
-    with open(file_path,'wb') as f:
-        f.write(uploaded_file.getbuffer())
+        with open(file_path,'wb') as f:
+            f.write(file_bytes)
 
-    st.success("File Saved Successfullly")
-    document_indexing(file_path)
+        document_indexing(file_path=file_path)
+        st.session_state.indexed_files.add(file_hash)
+        st.session_state.answer_cache = {}
+
+        st.success("File indexed successfully")
+
+
+
+    else:
+        st.info("This file is already indexed in this session.")
 
 
 
     query = st.text_input("Enter question to ask related to document")
 
     if st.button("Submit"):
-        try:
-            response = requests.post(API_URL,query)
-            context = retriever(query)
-            response = chatbot(query,context)
-            st.write(response)
 
+        clean_query = query.strip().lower()
 
-        except:
-            st.write("Enter some text")
+        if not clean_query:
+            st.warning("Please enter a question.")
+        elif clean_query in st.session_state.answer_cache:
+            st.info("Showing a cache answer")
+            st.write(st.session_state.answer_cache[clean_query])
+        else:
+            try:
+                context = retriever(query)
+                answer = chatbot(query,context)
+                st.session_state.answer_cache[clean_query] = answer
+                st.write(answer)
+
+            except Exception as error:
+                st.write(f"Something went wrong {error}")
 
         
     
