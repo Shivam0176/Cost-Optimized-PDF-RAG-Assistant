@@ -1,5 +1,9 @@
 from fastapi import FastAPI,UploadFile,HTTPException, File
 from pydantic import BaseModel,Field
+from backend.retriver import retriever
+from backend.llm import chatbot
+from pathlib import Path
+from backend.ingest import document_indexing
 
 
 app = FastAPI()
@@ -46,25 +50,51 @@ async def upload_pdf(file: UploadFile = File(...)):
     #validate file
     await validate_pdf(file)
 
+    upload_dir = Path("uploads")
+    upload_dir.mkdir(exist_ok=True)
+
+    filename = Path(file.filename).name
+    file_path = upload_dir / filename
+
+    with open(file_path,"wb") as saved_file:
+        saved_file.write(await file.read())
+
+    document_indexing(str(file_path))
+
     return {
-        "message":"Validation Successful",
-        "filename":file.filename
+        "message": "File indexed successfully",
+        "filename": filename
     }
 
 
 #Query endpoint
 @app.post('/query')
-async def read_query(query: QueryRequest):
+async def read_query(request: QueryRequest):
+    question = request.query.strip()
 
-    query = query.query.strip()
+    docs = retriever(question)
 
-    if not query:
+    if not docs:
         raise HTTPException(
-            status_code=400,
-            detail="Query cannot be empty."
+            status_code=404,
+            detail="No relevant information was found in the indexed documents."
         )
 
-    return "Query Successfull"
+    context = "\n\n".join(doc.page_content for doc in docs)
+    answer = chatbot(question,context)
+
+    sources = [
+        {
+            "filename": doc.metadata.get("source","Unknown file"),
+            "page": doc.metadata.get("page",0)+1,
+        }
+        for doc in docs
+    ]
+
+    return {
+        "answer": answer,
+        "sources": sources
+    }
 
 
 

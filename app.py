@@ -3,8 +3,7 @@ import hashlib
 import os
 import requests
 from backend.ingest import document_indexing
-from backend.retriver import retriever
-from backend.llm import chatbot
+
 
 st.title("DocVerse AI")
 st.write("A RAG application that takes PDF document as input and user can ask questions in contex of that document")
@@ -22,6 +21,7 @@ uploaded_file = st.file_uploader(
 )
 
 API_URL = "http://localhost:8000/upload" 
+QUERY_API_URL = "http://127.0.0.1:8000/query"
 
 
 if uploaded_file is not None:
@@ -48,14 +48,9 @@ if uploaded_file is not None:
 
 
     if file_hash not in st.session_state.indexed_files:
-        os.makedirs("uploads",exist_ok=True)
-
-        file_path = os.path.join('uploads',uploaded_file.name)
-
-        with open(file_path,'wb') as f:
-            f.write(file_bytes)
-
-        document_indexing(file_path=file_path)
+        response = requests.post(API_URL,files=files,timeout=120)
+        response.raise_for_status()
+        
         st.session_state.indexed_files.add(file_hash)
         st.session_state.answer_cache = {}
 
@@ -85,28 +80,29 @@ if uploaded_file is not None:
 
         else:
             try:
-                docs = retriever(query)
-                if not docs:
-                    st.warning("I could not find relevant information in the uploaded document.")
-                    st.stop()
+                response = requests.post(
+                    QUERY_API_URL,
+                    json={"query": query},
+                    timeout=60
+                )
+                response.raise_for_status()
 
+                api_result = response.json()
 
-                context = "\n\n".join(doc.page_content for doc in docs)
-                answer = chatbot(query,context)
-
-                sources = sorted({
-                    f"{os.path.basename(doc.metadata['source'])} - page {doc.metadata['page']+1}"
-                    for doc in docs
-                })
+                sources = [
+                    f"{os.path.basename(source['filename'])} - page {source['page']}"
+                    for source in api_result['sources']
+                ]
 
                 result = {
-                    "answer": answer,
+                    "answer": api_result["answer"],
                     "sources": sources
                 }
 
                 st.session_state.answer_cache[clean_query] = result
-                st.write(result['answer'])
-                st.caption("Sources: " + " | ".join(result['sources']))
+
+                st.write(result["answer"])
+                st.caption("Sources: " + " | ".join(result["sources"]))
 
             except Exception as error:
                 st.write(f"Something went wrong {error}")
