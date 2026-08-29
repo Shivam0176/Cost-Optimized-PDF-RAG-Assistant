@@ -1,6 +1,5 @@
 langchain-core
 langchain-groq
-langchain-google-genai
 langchain-chroma
 streamlit
 fastapi

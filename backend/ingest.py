@@ -17,7 +17,6 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 def document_indexing(file_path):
-    google_api_key = os.getenv("GEMINI_API_KEY")
     
     #Loading PDF
     loader = PyPDFLoader(file_path=file_path)

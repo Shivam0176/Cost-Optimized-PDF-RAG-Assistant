@@ -26,6 +26,7 @@ API_URL = "http://localhost:8000/upload"
 
 if uploaded_file is not None:
 
+    # Converting pdf into hash for duplicate detection
     file_bytes = uploaded_file.getvalue()
     file_hash = hashlib.sha256(file_bytes).hexdigest()
     files = {
@@ -36,13 +37,13 @@ if uploaded_file is not None:
         )
     }
 
-    try:
-        response = requests.post(API_URL,files=files)
-        result = response.json()
-        print(result,"\n")
+    # try:
+    #     response = requests.post(API_URL,files=files)
+    #     result = response.json()
+    #     print(result,"\n")
 
-    except:
-        print("error")
+    # except:
+    #     print("error")
 
 
 
@@ -85,6 +86,11 @@ if uploaded_file is not None:
         else:
             try:
                 docs = retriever(query)
+                if not docs:
+                    st.warning("I could not find relevant information in the uploaded document.")
+                    st.stop()
+
+
                 context = "\n\n".join(doc.page_content for doc in docs)
                 answer = chatbot(query,context)
 
