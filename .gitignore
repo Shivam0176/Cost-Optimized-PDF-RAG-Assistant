@@ -1,2 +1,12 @@
+# Secrets
 .env
 .env.*
+!.env.example
+# Python
+__pycache__/
+*.py[cod]
+# Runtime data
+uploads/
+vectorstore/
+# Editor files
+.vscode/
