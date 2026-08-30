@@ -2,7 +2,28 @@ import streamlit as st
 import hashlib
 import os
 import requests
-from backend.ingest import document_indexing
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_BASE_URL = os.getenv(
+    "API_BASE_URL",
+    "http://127.0.0.1:8000"
+).rstrip("/")
+
+UPLOAD_API_URL = f"{API_BASE_URL}/upload"
+QUERY_API_URL = f"{API_BASE_URL}/query"
+
+def api_error_message(error: requests.RequestException) -> str:
+    response = getattr(error, "response",None)
+
+    if response is not None:
+        try:
+            return response.json().get("detail","The API request failed.")
+        except ValueError:
+            return "The API returned an invalid error response"
+
+    return "Could not reach the API. Make sure FastAPI is running."
 
 
 st.title("DocVerse AI")
@@ -19,9 +40,6 @@ uploaded_file = st.file_uploader(
     "Upload PDF",
     type=['pdf']
 )
-
-API_URL = "http://localhost:8000/upload" 
-QUERY_API_URL = "http://127.0.0.1:8000/query"
 
 
 if uploaded_file is not None:
@@ -48,13 +66,21 @@ if uploaded_file is not None:
 
 
     if file_hash not in st.session_state.indexed_files:
-        response = requests.post(API_URL,files=files,timeout=120)
-        response.raise_for_status()
-        
-        st.session_state.indexed_files.add(file_hash)
-        st.session_state.answer_cache = {}
+        try:
+            response = requests.post(
+                UPLOAD_API_URL,
+                files=files,
+                timeout=120
+            )
+            response.raise_for_status()
 
-        st.success("File indexed successfully")
+            st.session_state.indexed_files.add(file_hash)
+            st.session_state.answer_cache = {}
+
+            st.success("File indexed successfully")
+
+        except requests.RequestException as error:
+            st.error(f"Upload failed: {api_error_message(error)}")
 
 
 
@@ -104,8 +130,11 @@ if uploaded_file is not None:
                 st.write(result["answer"])
                 st.caption("Sources: " + " | ".join(result["sources"]))
 
+            except requests.RequestException as error:
+                st.error(f"Unexpected application error: {error}")
+
             except Exception as error:
-                st.write(f"Something went wrong {error}")
+                st.error(f"Unexpected application error: {error}")
 
         
     
