@@ -1,20 +1,11 @@
-import os
 
 from langchain_chroma import Chroma
-import torch
-from langchain_huggingface import HuggingFaceEmbeddings
-from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from backend.config import get_settings
+from backend.embeddings import get_embeddings
 
-load_dotenv(override=True)
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    model_kwargs={"device": device, "local_files_only": True},
-    encode_kwargs={"normalize_embeddings": True}
-)
+settings = get_settings()
 
 def document_indexing(file_path):
     
@@ -23,14 +14,14 @@ def document_indexing(file_path):
     documents = loader.load()
 
     #Splittng the document
-    splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap)
     chunks = splitter.split_documents(documents)
 
     #Converting into Embeddings
     vector_store = Chroma.from_documents(
         documents=chunks,
-        embedding=embeddings,
-        persist_directory="./vectorstore/chroma_local_db"                                           
+        embedding=get_embeddings,
+        persist_directory=str(settings.vector_store_dir),                                           
     )
 
     print(vector_store)
