@@ -10,3 +10,5 @@ uploads/
 vectorstore/
 # Editor files
 .vscode/
+
+evaluation/results/

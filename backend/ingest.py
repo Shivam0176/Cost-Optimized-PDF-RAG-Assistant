@@ -20,8 +20,8 @@ def document_indexing(file_path):
     #Converting into Embeddings
     vector_store = Chroma.from_documents(
         documents=chunks,
-        embedding=get_embeddings,
-        persist_directory=str(settings.vector_store_dir),                                           
+        embedding=get_embeddings(),
+        persist_directory=str(settings.vectorstore_dir),
     )
 
     print(vector_store)

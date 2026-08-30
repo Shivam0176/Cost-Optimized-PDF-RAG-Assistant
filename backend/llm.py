@@ -36,6 +36,21 @@ def chatbot(query,context):
     
     return response
 
+def chatbot_with_usage(query, context):
+    message = model.invoke(
+        prompt.format(
+            context=context,
+            question=query
+        )
+    )
+
+    usage = getattr(message, "usage_metadata",None)
+
+    if not usage:
+        usage = message.response_metadata.get("token_usage",{})
+
+    return message.content, usage
+
 
 if __name__ == "__main__":
     chatbot()
