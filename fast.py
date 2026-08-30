@@ -1,6 +1,6 @@
 from fastapi import FastAPI,UploadFile,HTTPException, File
 from pydantic import BaseModel,Field
-from backend.retriver import retriever
+from backend.retriever import retriever
 from backend.llm import chatbot
 from pathlib import Path
 from backend.ingest import document_indexing

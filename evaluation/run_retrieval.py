@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import time
 
-from backend.retriver import retriever
+from backend.retriever import retriever
 from evaluation.metrics import retrieval_metrics
 
 DATASET_PATH = Path("evaluation/datasets/unit_ii.jsonl")

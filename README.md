@@ -67,7 +67,7 @@ Open the Streamlit URL shown in the terminal, upload a PDF, and ask a question.
 - `app.py` - Streamlit user interface
 - `fast.py` - FastAPI upload and query endpoints
 - `backend/ingest.py` - PDF loading, chunking, and local embedding
-- `backend/retriver.py` - Chroma similarity search
+- `backend/retriever.py` - Chroma similarity search
 - `backend/llm.py` - Groq answer generation
 
 ## Notes

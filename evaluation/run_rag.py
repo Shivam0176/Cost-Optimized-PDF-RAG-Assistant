@@ -2,7 +2,7 @@ import json
 import time
 from pathlib import Path
 from backend.llm import chatbot_with_usage
-from backend.retriver import retriever
+from backend.retriever import retriever
 from evaluation.metrics import estimate_groq_cost
 
 DATASET_PATH = Path("evaluation/datasets/unit_ii.jsonl")
