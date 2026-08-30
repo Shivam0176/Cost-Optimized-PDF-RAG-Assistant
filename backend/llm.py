@@ -2,20 +2,16 @@
 from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-import sys
-from backend.retriver import retriever
 
-from dotenv import load_dotenv
-sys.stdout.reconfigure(encoding="utf-8")
+from backend.config import get_settings
 
-# loading env variables
-load_dotenv(override=True)
-
+settings = get_settings()
 
 model = ChatGroq(
-    model="openai/gpt-oss-20b",
+    model=settings.llm_model,
+    api_key=settings.groq_api_key,
     temperature=0,
-    max_tokens=400)
+    max_tokens=settings.max_output_tokens)
 
 prompt = PromptTemplate(
     template="""

@@ -13,3 +13,4 @@ python-multipart
 uvicorn[standard]
 requests
 torch
+pydantic-settings
