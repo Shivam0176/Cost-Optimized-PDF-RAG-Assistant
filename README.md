@@ -1,206 +1,247 @@
 # DocVerse AI
 
-Cost-optimized, citation-aware PDF question answering with Retrieval-Augmented Generation (RAG).
+**A cost-conscious PDF RAG assistant built to measure retrieval quality, latency, and LLM usage—not just generate answers.**
 
-DocVerse AI lets users upload PDF documents and ask questions about their content. It uses local SentenceTransformer embeddings to avoid embedding API costs, Chroma for vector search, FastAPI for the backend API, Streamlit for the interface, and Groq for answer generation.
+DocVerse AI lets you upload a PDF, ask questions about its content, and receive an answer with source-page references. It combines local embeddings, Chroma vector search, FastAPI, Streamlit, and Groq for generation.
 
-## Why this project
+> This is a learning and evaluation project, not a production-ready multi-user service. See [Known limitations](#known-limitations).
 
-- Local `sentence-transformers/all-MiniLM-L6-v2` embeddings
-- GPU acceleration when CUDA is available, with CPU fallback
-- Chroma vector storage and similarity retrieval
-- Grounded answers with source document and page citations
-- Upload validation and configurable file-size limits
-- Duplicate-upload prevention using file hashes
-- Streamlit answer caching for repeated questions
-- Configurable model, chunking, retrieval, and output-token settings
-- Retrieval, groundedness, latency, token, and cost evaluation
+## Why I built it
 
-## Application flow
+A basic RAG demo can show that retrieval and generation work. I wanted to understand the trade-offs behind the pipeline: how good retrieval is, how much latency comes from each stage, and how to reduce avoidable API usage.
 
-```text
-Upload PDF in Streamlit
-        |
-        v
-FastAPI validates and stores the file
-        |
-        v
-PDF text is split into chunks
-        |
-        v
-Local SentenceTransformer creates embeddings
-        |
-        v
-Chroma stores and retrieves relevant chunks
-        |
-        v
-Groq generates an answer from retrieved context
-        |
-        v
-Streamlit displays the answer and source pages
-```
+The project explores:
 
-## Cost optimization
+- **Local embeddings** with `sentence-transformers/all-MiniLM-L6-v2` to avoid embedding API charges.
+- **Vector retrieval** using Chroma and configurable chunking and top-k settings.
+- **Source references** that return the retrieved PDF filename and page number.
+- **In-process caching** for the embedding model and repeated questions in a Streamlit session.
+- **Cost and latency measurement** for retrieval and LLM generation.
+- **A small evaluation dataset** for tracking retrieval performance as the system changes.
 
-- Embeddings run locally, avoiding a paid embedding API charge.
-- Embedding models are cached in memory after the first load.
-- Duplicate files are not indexed repeatedly during a Streamlit session.
-- Repeated questions can be served from the application cache.
-- `MAX_OUTPUT_TOKENS` limits generation cost and response length.
-- Token usage and estimated cost are recorded by the RAG evaluation runner.
-
-## Project structure
+## How it works
 
 ```text
-.
-├── app.py                         # Streamlit frontend
-├── fast.py                        # FastAPI application and endpoints
-├── backend/
-│   ├── config.py                  # Environment-backed settings
-│   ├── embeddings.py              # Cached local embedding model
-│   ├── ingest.py                  # PDF loading, splitting, and indexing
-│   ├── retriever.py               # Chroma retrieval
-│   └── llm.py                     # Groq generation and usage data
-├── evaluation/
-│   ├── datasets/unit_ii.jsonl     # Retrieval evaluation questions
-│   ├── metrics.py                 # Retrieval and cost metrics
-│   ├── run_retrieval.py           # Hit@K and MRR evaluation
-│   ├── run_rag.py                 # End-to-end RAG evaluation
-│   └── create_groundedness_review.py
-├── tests/                         # API tests
-├── Unit-II.pdf                    # Sample document
-├── requirements.txt
-├── .env.example
-└── pytest.ini
+Streamlit UI
+    │
+    ├── Upload PDF ──> FastAPI validates and saves file
+    │                         │
+    │                         v
+    │                 PyPDFLoader extracts pages
+    │                         │
+    │                         v
+    │                 Text splitter creates chunks
+    │                         │
+    │                         v
+    │                 Local embedding model
+    │                         │
+    │                         v
+    │                    Chroma store
+    │
+    └── Ask question ──> FastAPI
+                             │
+                             v
+                      Retrieve top-k chunks
+                             │
+                             v
+                      Groq LLM generates answer
+                             │
+                             v
+                    Answer + source page references
 ```
 
-Generated runtime data is stored locally in `uploads/`, `vectorstore/`, and `evaluation/results/`; these directories are ignored by Git.
+## Tech stack
 
-## Setup
-
-Create and activate a virtual environment:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-Create the environment file:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Set your Groq API key in `.env`:
-
-```env
-GROQ_API_KEY=your_groq_api_key
-```
-
-Useful settings include:
-
-```env
-EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-EMBEDDING_DEVICE=auto
-LLM_MODEL=openai/gpt-oss-20b
-MAX_OUTPUT_TOKENS=400
-CHUNK_SIZE=600
-CHUNK_OVERLAP=100
-RETRIEVAL_K=3
-```
-
-## Run the application
-
-Start FastAPI from the project root:
-
-```powershell
-uvicorn fast:app --reload
-```
-
-In a second terminal, start Streamlit:
-
-```powershell
-streamlit run app.py
-```
-
-Open the local Streamlit URL, upload a PDF, and ask a question.
-
-API endpoints:
-
-- `GET /health` — service health check
-- `POST /upload` — validate, save, and index a PDF
-- `POST /query` — retrieve context and generate an answer
-
-## Index a document manually
-
-The sample ingestion script indexes `Unit-II.pdf`:
-
-```powershell
-python -m backend.ingest
-```
-
-For a clean evaluation index:
-
-```powershell
-$env:VECTORSTORE_DIR="vectorstore/eval_unit_ii"
-python -m backend.ingest
-python -m evaluation.run_retrieval
-Remove-Item Env:VECTORSTORE_DIR
-```
-
-Re-index whenever the embedding model, chunking settings, or source corpus changes.
+| Component | Technology | Purpose |
+|---|---|---|
+| UI | Streamlit | PDF upload and question-answering interface |
+| API | FastAPI | Upload, retrieval, and answer endpoints |
+| PDF parsing | PyPDFLoader | Extract page text and metadata |
+| Text splitting | RecursiveCharacterTextSplitter | Split page text into retrieval chunks |
+| Embeddings | Sentence Transformers | Generate local text embeddings |
+| Vector database | Chroma | Store and retrieve document chunks |
+| Generation | Groq via LangChain | Generate answers from retrieved context |
+| Tests | pytest, FastAPI TestClient | Exercise API behavior |
 
 ## Evaluation
 
-Run retrieval evaluation:
+The project includes a labelled question dataset and scripts for retrieval and end-to-end RAG evaluation.
+
+### Previously recorded baseline
+
+| Metric | Result |
+|---|---:|
+| Hit@3 | 89.5% |
+| Mean Reciprocal Rank (MRR) | 0.763 |
+| Warm retrieval latency | ~24 ms |
+| Median generation latency | ~5.15 s |
+| P95 generation latency | ~10.48 s |
+| Estimated average Groq cost per query | ~$0.000163 |
+
+These are baseline measurements from the project's earlier evaluation run, not a guarantee of performance on other documents or hardware. Retrieval latency excludes model cold-start time; LLM latency depends on provider load, model, prompt size, and network conditions. Cost is an estimate based on the pricing assumptions in `evaluation/metrics.py`, so update those assumptions before comparing costs.
+
+### Run the evaluation
+
+The retrieval dataset currently targets the sample `Unit-II.pdf`. Use a clean vector-store directory so old chunks do not affect the result.
+
+PowerShell:
 
 ```powershell
+$env:VECTORSTORE_DIR = "vectorstore/eval_unit_ii"
+python -m backend.ingest
 python -m evaluation.run_retrieval
-```
-
-This reports Hit@3, MRR, and retrieval latency. Run the end-to-end evaluation with:
-
-```powershell
 python -m evaluation.run_rag
+Remove-Item Env:VECTORSTORE_DIR
 ```
 
-Results are saved to `evaluation/results/rag_results.jsonl` and include retrieved sources, generated answers, token usage, estimated cost, retrieval latency, generation latency, and total latency.
+The scripts report retrieval metrics, latency, token usage, and estimated generation cost. End-to-end results are written to `evaluation/results/rag_results.jsonl`.
 
-Create a groundedness review file:
+For a groundedness review CSV:
 
 ```powershell
 python -m evaluation.create_groundedness_review
 ```
 
-Review each answer against its retrieved context and record a groundedness score in the generated CSV.
+Review the generated answers against their retrieved context and record your assessment. The current groundedness workflow involves manual review; it should not be interpreted as an automated factuality score.
+
+## Getting started
+
+### Requirements
+
+- Python 3.10 or a compatible Python version for the installed dependencies
+- A Groq API key
+- Internet access for Groq requests
+- The embedding model downloaded locally before running, because the embedding loader uses `local_files_only=True`
+- Optional: CUDA-compatible PyTorch setup if you want GPU embeddings
+
+### 1. Clone and create a virtual environment
+
+```powershell
+git clone https://github.com/Shivam0176/Cost-Optimized-PDF-RAG-Assistant.git
+cd Cost-Optimized-PDF-RAG-Assistant
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 2. Download the embedding model
+
+Run this once while connected to the internet:
+
+```powershell
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+```
+
+If you change `EMBEDDING_MODEL`, download that model to the local cache before starting the application.
+
+### 3. Configure environment variables
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env` and set your Groq API key:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+```
+
+Common settings:
+
+| Variable | Default | Description |
+|---|---|---|
+| `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Local embedding model |
+| `EMBEDDING_DEVICE` | `auto` | `auto`, `cpu`, or `cuda` |
+| `LLM_MODEL` | `openai/gpt-oss-20b` | Groq-supported generation model |
+| `MAX_OUTPUT_TOKENS` | `400` | Maximum generated tokens |
+| `CHUNK_SIZE` | `600` | Text chunk size |
+| `CHUNK_OVERLAP` | `100` | Overlap between chunks |
+| `RETRIEVAL_K` | `3` | Number of chunks retrieved |
+| `MAX_UPLOAD_BYTES` | `209715200` | Maximum accepted upload size in bytes |
+| `UPLOAD_DIR` | `uploads` | Uploaded PDF directory |
+| `VECTORSTORE_DIR` | `vectorstore/chroma_local_db` | Chroma persistence directory |
+| `API_BASE_URL` | `http://127.0.0.1:8000` | FastAPI base URL used by Streamlit |
+
+Do not commit `.env` or expose your API key.
+
+### 4. Start the backend and UI
+
+Terminal 1 — FastAPI:
+
+```powershell
+uvicorn fast:app --reload
+```
+
+Terminal 2 — Streamlit:
+
+```powershell
+streamlit run app.py
+```
+
+Open the local URL printed by Streamlit, upload a PDF, and ask a question.
+
+### API endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/health` | Return basic service status and model configuration |
+| `POST` | `/upload` | Save and index a PDF |
+| `POST` | `/query` | Retrieve context and generate an answer |
 
 ## Tests
+
+Run the current test suite from the project root:
 
 ```powershell
 pytest -q
 ```
 
-The tests cover health checks, upload validation, query validation, and successful query responses.
+The existing tests cover basic health, upload/query validation, and a successful query response. They do not yet provide comprehensive coverage for document isolation, duplicate indexing, malformed PDFs, or concurrent requests.
 
-## Security and repository notes
+## Repository layout
 
-- Never commit `.env` or API keys.
-- Uploaded documents, Chroma databases, caches, and evaluation results are local runtime data.
-- The sample `Unit-II.pdf` is used by the current evaluation dataset.
-- Run commands from the project root so imports such as `backend.config` resolve correctly.
+```text
+.
+├── app.py
+├── fast.py
+├── backend/
+│   ├── config.py
+│   ├── embeddings.py
+│   ├── ingest.py
+│   ├── llm.py
+│   └── retriever.py
+├── evaluation/
+│   ├── datasets/unit_ii.jsonl
+│   ├── metrics.py
+│   ├── run_retrieval.py
+│   ├── run_rag.py
+│   └── create_groundedness_review.py
+├── tests/
+├── Unit-II.pdf
+├── requirements.txt
+└── .env.example
+```
 
-## Future improvements
+## Known limitations
 
-- Add authentication and per-user document collections.
-- Replace in-process caching with a shared production cache.
-- Add reranking and hybrid keyword/vector retrieval.
-- Add automated groundedness and answer-quality scoring.
-- Add structured logging, monitoring, and tracing.
-- Add CI checks and container deployment when requirements are stable.
+- The current vector store is shared. Retrieval is not yet filtered by a selected document or user, so this should not be used for private multi-user documents.
+- Duplicate detection in the Streamlit UI is session-local; backend ingestion does not yet enforce content-hash idempotency.
+- Upload validation relies on metadata such as MIME type and filename extension. Add content-level validation and robust streaming limits before exposing the API publicly.
+- The answer cache is in-process and session-local, not a shared production cache.
+- The evaluation set is small and focused on one sample PDF. Results may not generalize to other document types or question distributions.
+- Citation references identify retrieved source pages; they do not independently prove that every generated claim is supported by those pages.
+- Dependency versions are not currently pinned to a tested lockfile.
 
+## Next steps
+
+- Add document-level isolation and authorization.
+- Make ingestion idempotent using content hashes and deterministic chunk IDs.
+- Expand evaluation across multiple PDFs and unanswerable questions.
+- Compare dense retrieval with hybrid search and reranking.
+- Add stronger upload validation, structured logging, CI, and deployment checks.
+
+## Learning notes
+
+This project is an ongoing experiment in building RAG systems with measurable trade-offs. The main lesson so far: retrieval quality, latency, cost, and reliability need to be evaluated together.
